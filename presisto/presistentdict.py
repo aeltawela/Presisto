@@ -1,21 +1,27 @@
 from collections import MutableMapping
 from hashlib import md5
+from os import path, remove, listdir, mkdir
+from pathlib import Path
 from pickle import dumps, loads
-from os import path, remove, listdir
 
-_path = './temp/'
+_path = './.data/'
 
 
 class PersistentDict(MutableMapping):
     """A dictionary that applies an arbitrary key-altering
        function before accessing the keys"""
 
-    def __init__(self, *args, **kwargs):
-        self.update(dict(*args, **kwargs))  # use the free update to set keys
+    def __init__(self, data_dir=None):
+        self.data_dir = Path(data_dir or './.data/').as_posix() + '/'
+
+        try:
+            mkdir(self.data_dir)
+        except FileExistsError as e:
+            pass
 
     def __contains__(self, key):
         _key = self.__keytransform__(key)
-        if path.isfile(_path + _key):
+        if path.isfile(self.data_dir + _key):
             return True
 
         return False
@@ -34,10 +40,12 @@ class PersistentDict(MutableMapping):
         self.__remove__(_key)
 
     def __iter__(self):
-        return iter(listdir(_path))
+        # to be supported
+        # return iter(listdir(self.data_dir))
+        return iter([])
 
     def __len__(self):
-        return len(listdir(_path))
+        return len(listdir(self.data_dir))
 
     @staticmethod
     def __keytransform__(key):
@@ -47,27 +55,24 @@ class PersistentDict(MutableMapping):
     def __valuetransform__(value):
         return dumps(value)
 
-    @staticmethod
-    def __store__(key, value):
+    def __store__(self, key, value):
         try:
-            with open(_path + key, 'wb') as file:
+            with open(self.data_dir + key, 'wb') as file:
                 file.write(value)
         except Exception as e:
             raise CannotWriteDictFile("Can't write dictionary file") from e
 
-    @staticmethod
-    def __read__(key):
+    def __read__(self, key):
         try:
-            with open(_path + key, 'rb') as file:
+            with open(self.data_dir + key, 'rb') as file:
                 value = file.read()
                 return value
         except Exception as e:
-            raise CannotReadDictFile("Can't read dictionary file") from e
+            raise KeyError from e
 
-    @staticmethod
-    def __remove__(key):
+    def __remove__(self, key):
         try:
-            remove(_path + key)
+            remove(self.data_dir + key)
         except Exception as e:
             raise CannotRemoveDictFile("Can't remove dictionary file") from e
 
